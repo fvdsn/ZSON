@@ -29,6 +29,7 @@ The entities are byte encoded in four parts.
     align the encoded data
   - The data that is encoded as a byte sequence
 
+<!-- WTF MARKDOWN -->
 
     MEMORY (BYTES)
     [    0   |    1    |    2    |    3    |  ....
