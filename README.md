@@ -29,7 +29,6 @@ The entities are byte encoded in four parts.
     align the encoded data
   - The data that is encoded as a byte sequence
 
-.
 
     MEMORY (BYTES)
     [    0   |    1    |    2    |    3    |  ....
@@ -51,16 +50,16 @@ Are only Encoded by their type field.
 Can be encoded in their different typed native represenation. The data is not 
 padded. The size can be computed from the type and is thus not encoded.
 
-    ENTITY  : TYPE : SIZE
-    --------+------+-----
-    INT8    : 4    : 2
-    INT16   : 5    : 3
-    INT32   : 6    : 5
-    UINT8   : 7    : 2
-    UINT16  : 8    : 3
-    UINT32  : 9    : 5
-    FLOAT32 : 10   : 5
-    FLOAT64 : 11   : 9
+    ENTITY  : TYPE : SIZE : REPR
+    --------+------+------+-----
+    INT8    : 4    : 2    : [ 4 | X ]
+    INT16   : 5    : 3    : [ 5 | X X ]
+    INT32   : 6    : 5    : [ 6 | X X X X ]
+    UINT8   : 7    : 2    : [ 7 | X ]
+    UINT16  : 8    : 3    : [ 8 | X X ]
+    UINT32  : 9    : 5    : [ 9 | X X X X ]
+    FLOAT32 : 10   : 5    : [10 | X X X X ]
+    FLOAT64 : 11   : 9    : [11 | X X X X X X X X ]
 
 The encoder is free to choose any encoding for numerical values as long as it does
 not result in any loss of precision. The decoder should provide the value as a
