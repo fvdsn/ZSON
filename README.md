@@ -29,6 +29,7 @@ The entities are byte encoded in four parts.
     align the encoded data
   - The data that is encoded as a byte sequence
 
+
     MEMORY (BYTES)
     [    0   |    1    |    2    |    3    |  ....
     ENTITY:
