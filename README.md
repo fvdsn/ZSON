@@ -2,27 +2,71 @@
 
 ZSON is a binary object serialisation format:
 
- - That has one to one correspondance with JSON; Any valid JSON
-   has a valid ZSON encoding, and any ZSON encoding has a valid JSON
-   encoding.
+ - That has a schema as close as possible to JSON's.
  - That is very easy to understand and implement
- - That efficiently encodes TypedArrays
+ - That efficiently encodes arrays of numerical data
  - That can be very fast to write and parse, especially for numerical data
    (up to 10x write speedup, 10000x parsing speedup!)
  - That is relatively compact (between 1.5x longer to 3x shorter depending
    on type of data)
  - That can be efficiently seeked into and partially parsed 
- - That supports big and little endianness
+
+## ZSON FAQ
+
+### Isn't JSON good enough ? 
+
+If JSON is good enough for you, then by all means, use JSON. If on the other hand
+you need more performance but want to keep working on a simple and familiar encoding
+scheme you could benefit from ZSON.
+
+### Is ZSON faster to write and parse ?
+
+All numbers, strings, and typed arrays are stored in ZSON as they would be stored natively 
+in memory. All that's needed to parse those values is a mmapped pointer. This is hard to beat. 
+
+### Is ZSON more compact ?
+
+In the short tests so far, ZSON can be from 20% larger to 60% shorter than
+JSON depending on the encoded data
+
+### What are the failings of ZSON ?
+
+ - Encoding large amount of small objects will take more space, and may be
+   slower
+ - There are several valid ways to encode a single schema
+ - As the writer must backtrack, it is not possible to generate ZSON directly
+   to a pipe or network.
+
+### What applications is ZSON intended to ?
+
+document containing binary blobs, multimedia objects, pictures, sound, 
+numerical arrays, are likely to be more compact and a lot faster to write
+and parse.
+
+
 
 ## ZSON Specification.
 
-ZSON encodes the entities defined by the JSON standard.
+ZSON encodes the entities defined by the JSON standard:
+  
+  - null
+  - true
+  - false
+  - numbers
+  - strings
+  - arrays
+  - objects
+
+In ZSON, numbers and arrays entities can carry type information,
+the following type are supported: 32 and 64 bit floating point numbers,
+8, 16, 32 and 64 bits signed and unsigned numbers
+
 
 The entities are byte encoded in four parts.
    
   - The first byte indicates the type of the entity, the type is a
     constant numerical value that is encoded as an unsigned 8bit integer. This is the
-    only field that is always present.
+    only field that is present in all entities encoding.
   - The next bytes may contain the total size of the entity in bytes encoded as
     an unsigned 32bit integer.
   - The padding consists of zero to 7 bytes of zeroed data that can used to
@@ -42,9 +86,9 @@ Are only Encoded by their type field.
     
     ENTITY : TYPE
     -------+-----
-    TRUE   :  1
-    FALSE  :  2
-    NULL   :  3
+    NULL   :  1
+    TRUE   :  2
+    FALSE  :  3
 
 ### Numbers
 
@@ -56,9 +100,11 @@ padded. The size can be computed from the type and is thus not encoded.
     INT8    : 4    : 2    : [ 4 | X ]
     INT16   : 5    : 3    : [ 5 | X X ]
     INT32   : 6    : 5    : [ 6 | X X X X ]
+    INT64   :      : 9    : [   | X X X X X X X X ]
     UINT8   : 7    : 2    : [ 7 | X ]
     UINT16  : 8    : 3    : [ 8 | X X ]
     UINT32  : 9    : 5    : [ 9 | X X X X ]
+    UINT64  :      : 9    : [   | X X X X X X X X ]
     FLOAT32 : 10   : 5    : [10 | X X X X ]
     FLOAT64 : 11   : 9    : [11 | X X X X X X X X ]
 
@@ -75,6 +121,38 @@ Strings are encoded in utf8 and null terminated. The utf8 data is not padded.
     STRING :  12  : ENCODED
 
     [ 12 | Size | UTF8 ENCODED STRING ... | '\0' ]
+    
+There are compact encoding form for string that are less than eleven characters long
+These encoding are simple and reduce string encoding size by 20% on average data, which is
+enough to warrant their inclusion.
+
+    ENTITY   : TYPE : SIZE : REPR
+    -------  +------+------+-----
+    STRING   :  12  : ENC  | [12 | S S S S ... 0 ] 
+    STRING4  :      : 4    | [   | C C 0 ] 
+    STRING8  :      : 8    | [   | C C C C C 0 ] 
+    STRING12 :      : 12   | [   | C C C C C C C C C 0 ] 
+
+    SIZE COMP:
+    SRC | STR | STRX | JSON 
+    ----+-----+------+------
+    1   | 7   | 4    | 3    
+    2   | 8   | 4    | 4    
+    3   | 9   | 8    | 5    
+    4   | 10  | 8    | 6    
+    5   | 11  | 8    | 7    
+    6   | 12  | 8    | 8    
+    7   | 13  | 12   | 9    
+    8   | 14  | 12   | 10   
+    9   | 15  | 12   | 11   
+    10  | 16  | 12   | 12   
+    ----+-----+------+------
+    -20 | +30 | +11  | 75   
+    -28%| +40%| +15% | +0%
+
+
+the string is less than 8 character long it can be encoded in compact form
+
 
 ### Arrays
 
@@ -122,26 +200,24 @@ binary representation of the numerical type.
 
 ### Endianness
 
-By default, all values should be encoded and decoded with their 
-big-endian binary representation. A little-endian encoding may be
-specifed in the `Manifest`
+All values should be encoded and decoded with their 
+big-endian binary representation.
 
 ### Bigger data
 
-By default, entity sizes are encoded as unsigned 32bit ints, which limit
+By default, entity sizes are encoded as unsigned 32bit unsigned ints, which limit
 the size of the document to 4Go. An alternative encoding uses a 64bit 
-Floating Point for all the entities size. Only positive integer values are
-considered valid, which limits the size of the document to 2 ^ 53 Bytes.
-That should be enough for everybody. 
+Unsigned int. this can be specified in the manifest.
 
 ### Manifest
 
 A ZSON document may be prefixed by a 8 byte manifest. The manifest
-starts with the four ascii values of the `ZSON` 
-string. If the next byte is equal to`'\0'`, The document is
-encoded with 32bit  size. If the next byte is equal to `'\0'`,
-The document is encoded with big endian representation. If any
-of these two values are different from `'\0'`, the manifest is required. The next byte
-is unused, and the last byte is an unsigned 8bit int used for version 
-numbering. 
+starts with the four ascii values of `zson` or `ZSON`. In the
+presence of an upper-case manifest, a 64bit size encoding is assumed.
+
+the next three bytes are intended for the user to encode the type of
+document encoded, and could be for example the three first characters 
+of the file extension.
+
+The last byte is reserved for later use.
 

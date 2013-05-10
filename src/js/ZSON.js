@@ -1,28 +1,35 @@
 $(function(){
     var exports = {};
 
-    var TRUE    = 1;
-    var FALSE   = 2;
-    var NULL    = 3;
+    var NULL    = 1;
+    var TRUE    = 2;
+    var FALSE   = 3;
     var INT8    = 4;
     var INT16   = 5;
     var INT32   = 6;
-    var UINT8   = 7;
-    var UINT16  = 8;
-    var UINT32  = 9;
-    var FLOAT32 = 10;
-    var FLOAT64 = 11;
-    var STRING_UTF8   = 12; 
-    var ARRAY         = 13;
-    var OBJECT        = 14;
-    var ARRAY_INT8    = 15;
-    var ARRAY_INT16   = 16;
-    var ARRAY_INT32   = 17;
-    var ARRAY_UINT8   = 18;
-    var ARRAY_UINT16  = 19;
-    var ARRAY_UINT32  = 20;
-    var ARRAY_FLOAT32 = 21;
-    var ARRAY_FLOAT64 = 22;
+    var INT64   = 7
+    var UINT8   = 8;
+    var UINT16  = 9;
+    var UINT32  = 10;
+    var UINT64  = 11;
+    var FLOAT32 = 12;
+    var FLOAT64 = 13;
+    var STRING   = 14; 
+    var STRING4       = 15;
+    var STRING8       = 16;
+    var STRING12      = 17;
+    var OBJECT        = 18;
+    var ARRAY         = 19;
+    var ARRAY_INT8    = 20;
+    var ARRAY_INT16   = 21;
+    var ARRAY_INT32   = 22;
+    var ARRAY_INT64   = 23;
+    var ARRAY_UINT8   = 24;
+    var ARRAY_UINT16  = 25;
+    var ARRAY_UINT32  = 26;
+    var ARRAY_UINT64  = 27
+    var ARRAY_FLOAT32 = 28;
+    var ARRAY_FLOAT64 = 29;
 
     function Buffer(buffer,bigendian){
         this.buffer = buffer || (new Uint8Array([0])).buffer ;
@@ -55,11 +62,26 @@ $(function(){
     Buffer.prototype.getInt8    = function(offset){ return this.view.getInt8(offset,this.bigendian)};
     Buffer.prototype.getInt16   = function(offset){ return this.view.getInt16(offset,this.bigendian)};
     Buffer.prototype.getInt32   = function(offset){ return this.view.getInt32(offset,this.bigendian)};
+    Buffer.prototype.getInt64   = function(offset){ return this.view.getInt32(offset,this.bigendian);} //TODO Handle large values
     Buffer.prototype.getUint8   = function(offset){ return this.view.getUint8(offset,this.bigendian)};
     Buffer.prototype.getUint16  = function(offset){ return this.view.getUint16(offset,this.bigendian)};
     Buffer.prototype.getUint32  = function(offset){ return this.view.getUint32(offset,this.bigendian)};
+    Buffer.prototype.getUint64  = function(offset){ return this.view.getUint32(offset,this.bigendian)}; //TODO Handle large values 
     Buffer.prototype.getFloat32 = function(offset){ return this.view.getFloat32(offset,this.bigendian)};
     Buffer.prototype.getFloat64 = function(offset){ return this.view.getFloat64(offset,this.bigendian)};
+    Buffer.prototype.getString  = function(offset,maxsize){
+        var utf8str = '';
+        var utf8 = false;
+        var c = 0;
+        var i = 0;
+        while((c = src.getUint8(offset+i++,this.bigendian)) !== 0 && i <= maxsize){
+            utf8str += String.fromCharCode(c);
+            if(c < 32 || c >= 127){
+                utf8 = true;
+            }
+        }
+        return utf8 ? decodeURIComponent(escape(utf8str)) : utf8str;
+    };
         
     Buffer.prototype.setInt8    = function(offset,value){
         this.checkSize(offset+1);
@@ -73,6 +95,10 @@ $(function(){
         this.checkSize(offset+4);
         this.view.setInt32(offset,value,this.bigendian);
     };
+    Buffer.prototype.setInt64   = function(offset,value){
+        this.checkSize(offset+8);
+        this.view.setInt32(offset,value,this.bigendian); //TODO Handle large values
+    };
     Buffer.prototype.setUint8   = function(offset,value){
         this.checkSize(offset+1);
         this.view.setUint8(offset,value,this.bigendian);
@@ -85,6 +111,10 @@ $(function(){
         this.checkSize(offset+4);
         this.view.setUint32(offset,value,this.bigendian);
     };
+    Buffer.prototype.setUint64  = function(offset,value){
+        this.checkSize(offset+8);
+        this.view.setUint32(offset,value,this.bigendian); //TODO Handle large values
+    };
     Buffer.prototype.setFloat32 = function(offset,value){
         this.checkSize(offset+4);
         this.view.setFloat32(offset,value,this.bigendian);
@@ -93,7 +123,14 @@ $(function(){
         this.checkSize(offset+8);
         this.view.setFloat64(offset,value,this.bigendian);
     };
-
+    Buffer.prototype.setString = function(offset,str){
+        var len = str.length;
+        this.checkSize(offset+len+1);
+        for(var i = 0; i < len; i++){
+            this.view.setUint8(offset+i,str.charCodeAt(i),this.bigendian);
+        }
+        this.view.setUint8(offset+len,0,this.bigendian);
+    };
     function buffer_log(buffer){
         var a = new Uint8Array(buffer);
         var str = '';
@@ -122,14 +159,14 @@ $(function(){
     }
     function get_size(buffer,offset,bits64){
         if(bits64){
-            return buffer.getFloat64(offset+1);
+            return buffer.getUint64(offset+1);
         }else{
             return buffer.getUint32(offset+1);
         }
     }
     function set_size(buffer,offset,size,bits64){
         if(bits64){
-            buffer.setFloat64(offset+1,size);
+            buffer.setUint64(offset+1,size);
         }else{
             buffer.setUint32(offset+1,size);
         }
@@ -186,25 +223,27 @@ $(function(){
                 size = 9;
             }
         }else if(typeof val === 'string'){
-            dst.setUint8(offset,STRING_UTF8);
-            size = header_size(bits64);
-            var utf8str = val; //unescape(encodeURIComponent(val));
-            var utf8 = false;
-            for(var i = 0, len = utf8str.length; i < len; i++){
-                var c = utf8str.charCodeAt(i);
-                if(!utf8 && (c < 32 || c > 127)){
-                    utf8str = unescape(encodeURIComponent(val));
-                    size = header_size(bits64);
-                    i = 0;
-                    utf8 = true;
-                }else{
-                    dst.setUint8(offset + size,c);
-                    size += 1;
-                }
+            var utf8str = unescape(encodeURIComponent(val));
+            var len = utf8str.length;
+            if(len <= 2){
+                dst.setUint8(offset,STRING4);
+                dst.setString(offset+1,utf8str);
+                size = 4;
+            }else if(len <= 6){
+                dst.setUint8(offset,STRING8);
+                dst.setString(offset+1,utf8str);
+                size = 8;
+            }else if(len <= 10){
+                dst.setUint8(offset,STRING12);
+                dst.setString(offset+1,utf8str);
+                size = 12;
+            }else{
+                dst.setUint8(offset,STRING);
+                var hsize = header_size(bits64);
+                dst.setString(offset+hsize,utf8str);
+                size = hsize + len + 1;
+                set_size(dst,offset,size,bits64);
             }
-            dst.setUint8(offset+size,0);    // null string terminator
-            size+= 1;
-            set_size(dst,offset,size,bits64);
         }else if(val instanceof Array){
             dst.setUint8(offset,ARRAY);
             size = header_size(bits64);
@@ -328,6 +367,9 @@ $(function(){
         }else if(header === UINT32){
             ret.data = src.getUint32(offset+1);
             ret.size = 5;
+        }else if(header === UINT64){
+            ret.data = src.getUint64(offset+1);
+            ret.size = 9;
         }else if(header === INT8){
             ret.data = src.getInt8(offset+1);
             ret.size = 2;
@@ -337,12 +379,44 @@ $(function(){
         }else if(header === INT32){
             ret.data = src.getInt32(offset+1);
             ret.size = 5;
+        }else if(header === INT64){
+            ret.data = src.getInt64(offset+1);
+            ret.size = 9;
         }else if(header === FLOAT32){
             ret.data = src.getFloat32(offset+1);
             ret.size = 5;
         }else if(header === FLOAT64){
             ret.data = src.getFloat64(offset+1);
             ret.size = 9;
+        }else if(header === STRING4){
+            ret.data = src.getString(offset+1,2);
+            ret.size = 4;
+        }else if(header === STRING8){
+            ret.data = src.getString(offset+1,6);
+            ret.size = 8
+        }else if(header === STRING12){
+            ret.data = src.getString(offset+1,10);
+            ret.size = 12;
+        }else if(header === STRING){
+            var len = get_size(src,offset,bits64);
+            var hsize = header_size(bits64);
+            ret.data = src.getString(offset+hsize,len-hsize);
+            ret.size = len;
+        }else if(header === OBJECT){
+            ret.data = {};
+            var len = get_size(src,offset,bits64);
+            var size = header_size(bits64);
+            while(size < len){
+                key = _decode(src,offset+size,bits64);
+                if(typeof key.data !== 'string'){
+                    throw new Error('ZSON: Object key is not a string');
+                }
+                size += key.size;
+                val = _decode(src,offset+size,bits64);
+                ret.data[key.data] = val.data;
+                size+= val.size;
+            }
+            ret.size = size;
         }else if(header === ARRAY){
             ret.data = [];
             var len = get_size(src,offset,bits64);
@@ -407,35 +481,16 @@ $(function(){
                 start += padding(start,8);
             ret.data = new Float64Array(src.buffer,start,(end-start)/8);
             ret.size = len;
-        }else if(header === OBJECT){
-            ret.data = {};
+        }else if(header === ARRAY_INT64 || header === ARRAY_UINT64){
             var len = get_size(src,offset,bits64);
-            var size = header_size(bits64);
-            while(size < len){
-                key = _decode(src,offset+size,bits64);
-                if(typeof key.data !== 'string'){
-                    throw new Error('ZSON: Object key is not a string');
-                }
-                size += key.size;
-                val = _decode(src,offset+size,bits64);
-                ret.data[key.data] = val.data;
-                size+= val.size;
+            var end = offset + len;
+            var start = offset + header_size(bits64);
+                start += padding(start,8);
+            ret.data = [];
+            while(start < end){
+                ret.data.push(header === ARRAY_INT64 ? src.getInt64(start) : src.getUint64(start));
+                start += 8;
             }
-            ret.size = size;
-        }else if(header === STRING_UTF8){
-            var len = get_size(src,offset,bits64);
-            var size = header_size(bits64);
-            var utf8str = '';
-            var utf8 = false;
-            while(size < len - 1){
-                var c = src.getUint8(offset+size);
-                utf8str += String.fromCharCode(c);
-                if(c < 32 || c >= 127){
-                    utf8 = true;
-                }
-                size += 1;
-            }
-            ret.data = utf8 ? decodeURIComponent(escape(utf8str)) : utf8str;
             ret.size = len;
         }else{
             throw new Error('ZSON: Unkown entity type: '+header);
