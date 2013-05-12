@@ -1,17 +1,21 @@
 $(function(){
     window.json1 = {"id":1,"jsonrpc":"2.0","total":5,"result":[{"id":1,"guid":"6be72f86-a009-4d93-a2e7-bcadf4e05fee","picture":"http://placehold.it/32x32","age":26,"name":"ChloeHailey","gender":"male","company":"Allnet","phone":"875-589-3885","email":"chloe@allnet.com","address":"28287,Augusta,EastVanBurenStreet","about":"Blanditinametsitvolutpatveniam,duissitaliquipdiammagna,dignissimametinte.Aliquam,laoreetnostrudexmagnamagna,eumvolutpatduisinin,verotinciduntvel.Nibhipsum,insuscipitullamcorperfacilisislobortis,tinciduntdolorveliteaveniam,euadipiscing.Dolorequisminim,facilisisdiampraesentduisvulputate,essehendreritaliquamatsed,enim.Utadipiscinghendreritut,nislvelutelitnulla,sitcommodoetexercizzril,euismodnisldolorcommodoblandit,aliquipetwisifeugaitluptatum,etea.","registered":"1990-11-21T01:43:46-01:00","tags":["vero","facilisi","praesent","duis","lorem","aliquam","veniam"],"friends":[{"id":1,"name":"MadelineWesley"},{"id":2,"name":"SarahBrown"},{"id":3,"name":"HannahGustman"}]},{"id":2,"guid":"9e68bf2e-8358-4791-9fab-af39dad97c2c","picture":"http://placehold.it/32x32","age":23,"name":"AaliyahClapton","gender":"male","company":"Conrama","phone":"890-588-3615","email":"aaliyah@conrama.com","address":"18707,Denver,LafayetteStreet","about":"Quisquivolutpatetsednonummy,duisfeugaitfacilisisveroerat,intinciduntetluptatum.Wisi,euismodquiconsectetuerminimfacilisis,quinislnullasitet,blanditaliquipdolor.Veliteu,minimcommodoutindelenit,aliquipvelnonummyvolutpatiusto,enimin.Essehendreritin,ettationluptatumdiamdolore,quistinciduntdelenitquiiusto,te.Odioametillumvulputate,suscipitmagnaetloremmolestie,lobortis.","registered":"1992-09-30T08:44:25-01:00","tags":["vulputate","suscipit","vel","tation","wisi","quis","magna"],"friends":[{"id":1,"name":"NatalieThornton"},{"id":2,"name":"RachelMorrison"},{"id":3,"name":"JocelynGoodman"}]},{"id":3,"guid":"6f85e048-5b7f-4272-a24d-0e01351b6a01","picture":"http://placehold.it/32x32","age":21,"name":"SofiaFord","gender":"male","company":"Idmax","phone":"807-438-2292","email":"sofia@idmax.com","address":"35200,Concord,WalkerStreet","about":"Laoreetminimveroadlaoreetblandit,feugiatininenimvolutpat,vulputateverominimlobortis.Esse,iriureduiszzriluterat,facilisisverominimfeugaitiusto,commodomolestiefacilisis.Esseut,suscipitessedoloreetiusto,odiomagnaveniametut,iriurete.Quisquiconsequat,magnazzrilquiutaugue,eumblanditdiamametex,te.Essevelblanditiriure,adaliquamvulputatequiet,ututmagnaipsumnulla,elitteutdolorduis,accumsan.","registered":"1995-01-10T00:05:59-01:00","tags":["vero","molestie","eros","nonummy","eum","facilisi","sit"],"friends":[{"id":1,"name":"LaylaGilbert"},{"id":2,"name":"AutumnOliver"},{"id":3,"name":"MelanieClapton"}]},{"id":4,"guid":"5ad7b550-4ebb-496b-8127-335aae747e7a","picture":"http://placehold.it/32x32","age":28,"name":"BrooklynThomson","gender":"female","company":"Infraique","phone":"877-520-2832","email":"brooklyn@infraique.com","address":"11411,Dallas,LafayetteStreets","about":"Minimeuismodnullanullahendreritaugue,facilisisnulladolorametet,ametlobortisessetincidunt.Lorem,aliquamullamcorperexfeugiatet,veroverominimsedaccumsan,doloreenimodio.Consequatad,aliquipexadipiscinglobortisadipiscing,feugiatconsequateaeratat,autempraesent.Dolorlaoreetelit,exercifacilisiquiwisisit,etautemvulputatealiquamaliquip,luptatum.Dolorenonummyetet,laoreetdoloreduisessedolore,adipiscingiriuretinciduntetmagna,enimdolorealiquamhendreritenim.","registered":"1998-11-13T05:43:23-01:00","tags":["ea","consequat","veniam","laoreet","quis","nisl","enim"],"friends":[{"id":1,"name":"MorganGoldman"},{"id":2,"name":"TaylorMiln"},{"id":3,"name":"AnnaCarey"}]},{"id":5,"guid":"1bfc1eeb-8406-40f9-b555-4ca70f6f4a7d","picture":"http://placehold.it/32x32","age":34,"name":"ValeriaGibbs","gender":"male","company":"iEnland","phone":"830-466-2034","email":"valeria@ienland.com","address":"30337,ChulaVista,LafayetteStreet","about":"Minimelitquidolortationdelenit,euismodfeugiatfeugaitadipiscingipsum,ullamcorperenimtationexerci.Diam,tinciduntduisinconsequatvel,illumdelenitatblanditfacilisis,nisldignissimlobortis.Eratquis,iustoexercifeugaiterosfacilisi,ullamcorperzzrileaquieu,feugaitaliquip.Facilisiconsequataugue,exaliquiplobortiseumut,eumblandittationquistincidunt,lorem.Vulputateerosverominim,diamatvulputatefeugiatad,erosillumsitaddolor,doloreuloremvelcommodo,auguesedametwisiminim,duisatduismolestie.Vel,feugaitetloremipsumminim,adipiscingfeugaitetuttincidunt.","registered":"2010-04-08T07:38:07-02:00","tags":["at","minim","iusto","laoreet","erat","augue","nonummy"],"friends":[{"id":1,"name":"MelanieBush"},{"id":2,"name":"SavannahCalhoun"},{"id":3,"name":"EmilyOswald"}]}]};
-    window.time  = function(fun,iter){
-        var startTime = (new Date()).getTime();
-        iter = iter || 1;
-        for(var i = 0; i < iter; i++){
-            fun();
-        }
-        return (new Date()).getTime() - startTime;
-    };
     var array = [];
     for(var i = 0; i < 100000; i++){
         array.push(Math.random());
     }
     window.json2 = new Float64Array(array);
+
+    function makeArray(length){
+        var array = [];
+        for(var i = 0; i < length; i++){
+            array.push(Math.random());
+        }
+        return array;
+    }
+    window.json3 = [];
+    for(var i = 0; i < 100; i++){
+        json3.push(makeArray(Math.ceil(Math.random()*2000)));
+    }
 
 });

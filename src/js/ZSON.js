@@ -1,4 +1,4 @@
-$(function(){
+(function(namespace){
     var exports = {};
 
     var NULL    = 1;
@@ -35,11 +35,14 @@ $(function(){
         this.buffer = buffer || (new Uint8Array([0])).buffer ;
         this.view   = new DataView(this.buffer);
         this.bigendian = bigendian || false;
-        this.size = this.buffer.byteLength; 
+        this.length = this.buffer.byteLength; 
     }
     exports.Buffer = Buffer;
 
     Buffer.prototype.resize = function(size){
+        if(this.length === size){
+            return;
+        }
         var src = new Uint8Array(this.buffer);
         var dst = new Uint8Array(size);
         var len = Math.min(this.buffer.byteLength,size);
@@ -50,12 +53,12 @@ $(function(){
 
         this.buffer = dst.buffer;
         this.view = new DataView(this.buffer);
-        this.size = this.buffer.byteLength;
+        this.length = this.buffer.byteLength;
     };
 
-    Buffer.prototype.checkSize = function(size){
-        if(size > this.size){
-            this.resize(Math.max(size,Math.ceil(this.size * 1.5)));
+    Buffer.prototype.checkLength = function(size){
+        if(size > this.length){
+            this.resize(Math.max(size,Math.ceil(this.length * 1.5)));
         }
     };
 
@@ -74,7 +77,7 @@ $(function(){
         var utf8 = false;
         var c = 0;
         var i = 0;
-        while((c = src.getUint8(offset+i++,this.bigendian)) !== 0 && i <= maxsize){
+        while((c = this.view.getUint8(offset+i++,this.bigendian)) !== 0 && i <= maxsize){
             utf8str += String.fromCharCode(c);
             if(c < 32 || c >= 127){
                 utf8 = true;
@@ -82,50 +85,53 @@ $(function(){
         }
         return utf8 ? decodeURIComponent(escape(utf8str)) : utf8str;
     };
+    Buffer.prototype.getChar = function(offset){
+        return String.fromCharCode(this.view.getUint8(offset,this.bigendian));
+    };
         
     Buffer.prototype.setInt8    = function(offset,value){
-        this.checkSize(offset+1);
+        this.checkLength(offset+1);
         this.view.setInt8(offset,value,this.bigendian);
     };
     Buffer.prototype.setInt16   = function(offset,value){
-        this.checkSize(offset+2);
+        this.checkLength(offset+2);
         this.view.setInt16(offset,value,this.bigendian);
     };
     Buffer.prototype.setInt32   = function(offset,value){
-        this.checkSize(offset+4);
+        this.checkLength(offset+4);
         this.view.setInt32(offset,value,this.bigendian);
     };
     Buffer.prototype.setInt64   = function(offset,value){
-        this.checkSize(offset+8);
+        this.checkLength(offset+8);
         this.view.setInt32(offset,value,this.bigendian); //TODO Handle large values
     };
     Buffer.prototype.setUint8   = function(offset,value){
-        this.checkSize(offset+1);
+        this.checkLength(offset+1);
         this.view.setUint8(offset,value,this.bigendian);
     };
     Buffer.prototype.setUint16  = function(offset,value){
-        this.checkSize(offset+2);
+        this.checkLength(offset+2);
         this.view.setUint16(offset,value,this.bigendian);
     };
     Buffer.prototype.setUint32  = function(offset,value){
-        this.checkSize(offset+4);
+        this.checkLength(offset+4);
         this.view.setUint32(offset,value,this.bigendian);
     };
     Buffer.prototype.setUint64  = function(offset,value){
-        this.checkSize(offset+8);
+        this.checkLength(offset+8);
         this.view.setUint32(offset,value,this.bigendian); //TODO Handle large values
     };
     Buffer.prototype.setFloat32 = function(offset,value){
-        this.checkSize(offset+4);
+        this.checkLength(offset+4);
         this.view.setFloat32(offset,value,this.bigendian);
     };
     Buffer.prototype.setFloat64 = function(offset,value){
-        this.checkSize(offset+8);
+        this.checkLength(offset+8);
         this.view.setFloat64(offset,value,this.bigendian);
     };
     Buffer.prototype.setString = function(offset,str){
         var len = str.length;
-        this.checkSize(offset+len+1);
+        this.checkLength(offset+len+1);
         for(var i = 0; i < len; i++){
             this.view.setUint8(offset+i,str.charCodeAt(i),this.bigendian);
         }
@@ -339,10 +345,19 @@ $(function(){
         return size;
     }
 
-    function encode(obj){
+    function encode(obj,opt){
+        var opt = opt || {};
         var buf = new Buffer();
-        var size = _encode(buf,0,obj,false);
-        buf.resize(size);
+        var start = 0;
+        if(opt.bigdata){
+            buf.setString(0,'ZSON');
+            start = 8;
+        }else if(opt.manifest){
+            buf.setString(0,'zson');
+            start = 8;
+        }
+        var size = _encode(buf,start,obj,false);
+        buf.resize(start + size);
         return buf.buffer;
     }
     exports.ZSON = {};
@@ -500,11 +515,22 @@ $(function(){
 
     exports.ZSON.decode = function(obj){
         var b = new Buffer(obj);
-        return _decode(b,0,false).data;
+        if(b.length == 0){
+            return undefined;
+        }else if(b.length < 8 ||( b.getChar(0) !== 'z' && b.getChar(0) !== 'Z')){
+            //No header
+            return _decode(b,0,false).data;
+        }else{
+            if(b.getChar(0) === 'z'){
+                return _decode(b,8,false).data;
+            }else{
+                return _decode(b,8,true).data;
+            }
+        }
     };
 
     for(field in exports){
-        window[field] = exports[field];
+        namespace[field] = exports[field];
     }
-});
+})(window);
 

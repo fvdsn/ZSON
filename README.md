@@ -7,7 +7,7 @@ ZSON is a binary object serialisation format:
  - That efficiently encodes arrays of numerical data
  - That can be very fast to write and parse, especially for numerical data
    (up to 10x write speedup, 10000x parsing speedup!)
- - That is relatively compact (between 1.5x longer to 3x shorter depending
+ - That is relatively compact (between 1.1x longer to 3x shorter depending
    on type of data)
  - That can be efficiently seeked into and partially parsed 
 
@@ -26,7 +26,7 @@ in memory. All that's needed to parse those values is a mmapped pointer. This is
 
 ### Is ZSON more compact ?
 
-In the short tests so far, ZSON can be from 20% larger to 60% shorter than
+In the short tests so far, ZSON can be from 10% larger to 65% shorter than
 JSON depending on the encoded data
 
 ### What are the failings of ZSON ?
@@ -43,6 +43,28 @@ document containing binary blobs, multimedia objects, pictures, sound,
 numerical arrays, are likely to be more compact and a lot faster to write
 and parse.
 
+## ZSON JS API
+
+The ZSON JavaScript implementation is found in `src/ZSON.js` and has a simple 
+api:
+
+    /*
+     *  Returns the decoded javascript object from an ArrayBuffer containing
+     *  the encoded ZSON data
+     *  @param data: the ArrayBuffer containing the encoded data
+     *  @returns String,Number,Boolean,Null,Array,TypedArray,Object
+     */
+    ZSON.decode(ArrayBuffer data)
+
+    /*
+     * returns the encoded ArrayBuffer from a JavaScript object
+     * @param Object opt (optional):
+     *   this object contains various encoding options:
+     *   - bigdata:  if true, uses 64bit size encoding
+     *   - manifest: if true, forces the encoding of a manifest
+     * @returns ArrayBuffer
+     */
+    ZSON.encode(Anything data, Object opt)
 
 
 ## ZSON Specification.
@@ -66,7 +88,7 @@ The entities are byte encoded in four parts.
    
   - The first byte indicates the type of the entity, the type is a
     constant numerical value that is encoded as an unsigned 8bit integer. This is the
-    only field that is present in all entities encoding.
+    only field that is present in all encoded entities.
   - The next bytes may contain the total size of the entity in bytes encoded as
     an unsigned 32bit integer.
   - The padding consists of zero to 7 bytes of zeroed data that can used to
@@ -100,17 +122,16 @@ padded. The size can be computed from the type and is thus not encoded.
     INT8    : 4    : 2    : [ 4 | X ]
     INT16   : 5    : 3    : [ 5 | X X ]
     INT32   : 6    : 5    : [ 6 | X X X X ]
-    INT64   :      : 9    : [   | X X X X X X X X ]
-    UINT8   : 7    : 2    : [ 7 | X ]
-    UINT16  : 8    : 3    : [ 8 | X X ]
-    UINT32  : 9    : 5    : [ 9 | X X X X ]
-    UINT64  :      : 9    : [   | X X X X X X X X ]
-    FLOAT32 : 10   : 5    : [10 | X X X X ]
-    FLOAT64 : 11   : 9    : [11 | X X X X X X X X ]
+    INT64   : 7    : 9    : [   | X X X X X X X X ]
+    UINT8   : 8    : 2    : [ 7 | X ]
+    UINT16  : 9    : 3    : [ 8 | X X ]
+    UINT32  : 10   : 5    : [ 9 | X X X X ]
+    UINT64  : 11   : 9    : [   | X X X X X X X X ]
+    FLOAT32 : 12   : 5    : [10 | X X X X ]
+    FLOAT64 : 13   : 9    : [11 | X X X X X X X X ]
 
 The encoder is free to choose any encoding for numerical values as long as it does
-not result in any loss of precision. The decoder should provide the value as a
-double
+not result in any loss of precision.
 
 ### Strings
 
@@ -118,9 +139,9 @@ Strings are encoded in utf8 and null terminated. The utf8 data is not padded.
 
     ENTITY : TYPE : SIZE
     -------+------+--------
-    STRING :  12  : ENCODED
+    STRING :  14  : ENCODED
 
-    [ 12 | Size | UTF8 ENCODED STRING ... | '\0' ]
+    [ 14 | Size | UTF8 ENCODED STRING ... | '\0' ]
     
 There are compact encoding form for string that are less than eleven characters long
 These encoding are simple and reduce string encoding size by 20% on average data, which is
@@ -128,10 +149,10 @@ enough to warrant their inclusion.
 
     ENTITY   : TYPE : SIZE : REPR
     -------  +------+------+-----
-    STRING   :  12  : ENC  | [12 | S S S S ... 0 ] 
-    STRING4  :      : 4    | [   | C C 0 ] 
-    STRING8  :      : 8    | [   | C C C C C 0 ] 
-    STRING12 :      : 12   | [   | C C C C C C C C C 0 ] 
+    STRING   :  14  : ENC  | [12 | S S S S ... 0 ] 
+    STRING4  :  15  : 4    | [   | C C 0 ] 
+    STRING8  :  16  : 8    | [   | C C C C C 0 ] 
+    STRING12 :  17  : 12   | [   | C C C C C C C C C 0 ] 
 
     SIZE COMP:
     SRC | STR | STRX | JSON 
@@ -151,9 +172,6 @@ enough to warrant their inclusion.
     -28%| +40%| +15% | +0%
 
 
-the string is less than 8 character long it can be encoded in compact form
-
-
 ### Arrays
 
 An array is an ordered list of entities. The encoded array data simply consists of
@@ -162,22 +180,22 @@ contains `undefined` values, they must be encoded as `NULL`. The array data is n
 
     ENTITY : TYPE : SIZE
     -------+------+--------
-    ARRAY  :  13  : ENCODED
+    ARRAY  :  19  : ENCODED
 
-    [ 13 | Size | VAL[0] | VAL[1] | ... ]
+    [ 19 | Size | VAL[0] | VAL[1] | ... ]
     
 ### Objects
 Objects are key values stores were keys are string and values are any kind of entity. 
 The Object encoded data is a concatenated sequence of the key values pairs. The key is
 always encoded as a ZSON string and the value can be any ZSON encoded entity. The
-Object data is not padded. If two key of the same value are encoded in the same object,
-the decoded object takes the value of the last declaration
+Object data is not padded. The keys must be unique, and the parser is free to handle duplicated
+keys as it wish.
 
     ENTITY : TYPE : SIZE
     -------+------+--------
-    OBJECT :  14  : ENCODED
+    OBJECT :  18  : ENCODED
 
-    [ 14 | Size | KEY1 | VAL[KEY1] | KEY2 | VAL[KEY2 | ... ]
+    [ 18 | Size | KEY1 | VAL[KEY1] | KEY2 | VAL[KEY2 | ... ]
 
 ### Typed Arrays
 If all the values of an array can be encoded with the same ZSON number type, the array
@@ -203,7 +221,7 @@ binary representation of the numerical type.
 All values should be encoded and decoded with their 
 big-endian binary representation.
 
-### Bigger data
+### Big data
 
 By default, entity sizes are encoded as unsigned 32bit unsigned ints, which limit
 the size of the document to 4Go. An alternative encoding uses a 64bit 
