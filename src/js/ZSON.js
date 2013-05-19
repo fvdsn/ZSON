@@ -7,7 +7,7 @@
     var INT8    = 4;
     var INT16   = 5;
     var INT32   = 6;
-    var INT64   = 7
+    var INT64   = 7;
     var UINT8   = 8;
     var UINT16  = 9;
     var UINT32  = 10;
@@ -27,7 +27,7 @@
     var ARRAY_UINT8   = 24;
     var ARRAY_UINT16  = 25;
     var ARRAY_UINT32  = 26;
-    var ARRAY_UINT64  = 27
+    var ARRAY_UINT64  = 27;
     var ARRAY_FLOAT32 = 28;
     var ARRAY_FLOAT64 = 29;
 
@@ -146,6 +146,7 @@
         }
         console.log(str);
     }
+
     exports.buffer_log = buffer_log;
 
     Buffer.prototype.log = function(){ buffer_log(this.buffer); }
