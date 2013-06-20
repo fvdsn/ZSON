@@ -348,7 +348,7 @@
 
     function encode(obj,opt){
         var opt = opt || {};
-        var buf = new Buffer();
+        var buf = new Buffer(null,true);
         var start = 0;
         if(opt.bigdata){
             buf.setString(0,'ZSON');
@@ -461,7 +461,6 @@
             var start = offset + header_size(bits64);
                 start += padding(start,4);
             ret.data = new Int16Array(src.buffer,start,(end-start)/2);
-            console.log(offset,start,end);
             ret.data = new Int32Array(src.buffer,start,(end-start)/4);
             ret.size = len;
         }else if(header === ARRAY_UINT8){
@@ -515,7 +514,7 @@
     }
 
     exports.ZSON.decode = function(obj){
-        var b = new Buffer(obj);
+        var b = new Buffer(obj,true);
         if(b.length == 0){
             return undefined;
         }else if(b.length < 8 ||( b.getChar(0) !== 'z' && b.getChar(0) !== 'Z')){

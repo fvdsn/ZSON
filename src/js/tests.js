@@ -33,13 +33,15 @@ $(function(){
         new Uint16Array([]),
         new Uint32Array([0,1,2,128,254,255,65534,65535,65536,4294967294,4294967295]),
         new Uint32Array([]),
-        new Float32Array([0,1.0,-1.0,Math.PI,Math.random(),Math.random()*1000,Math.random*10000]),
-        new Float64Array([0,1.0,-1.0,Math.PI,Math.random(),Math.random()*1000,Math.random*10000])
+        new Float32Array([0,1.0,-1.0,Math.PI,Math.random(),Math.random()*1000,Math.random()*10000,1/0,-1/0,0/0]),
+        new Float64Array([0,1.0,-1.0,Math.PI,Math.random(),Math.random()*1000,Math.random()*10000,1/0,-1/0,0/0])
     ];
+    window.typedarrays = typedarrays;
     function array_equals(a1,a2){
         if(a1.byteLength === a2.byteLength && a1.length === a2.length){
             for(var i = 0; i < a1.length; i++){
-                if(a1[i] !== a2[i]){
+                if(!(a1[i] === a2[i] || (isNaN(a1[i]) && isNaN(a2[i])))){
+                    console.log(a1[i],a2[i]);
                     return false;
                 }
             }
@@ -49,7 +51,7 @@ $(function(){
     }
     for(var i = 0; i < typedarrays.length; i++){
         var array = typedarrays[i];
-        console.assert(array_equals(array,ZSON.decode(ZSON.encode(array))),'array test:'+array.toString());
+        console.assert(array_equals(array,ZSON.decode(ZSON.encode(array))),'array test:['+i+']'+array.toString());
     }
     console.log('... finished all tests');
 });
