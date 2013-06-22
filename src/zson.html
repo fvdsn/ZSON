@@ -7,7 +7,17 @@
         <script src="js/ZSON.js"></script>
         <script src="js/tests.js"></script>
         <script src="js/perfs.js"></script>
-        <script src="js/write.js"></script>
+        <script src="js/readwrite.js"></script>
+        <style>
+        .error-box{
+            display: none;
+            color: red;
+            width: 400px;
+            padding: 10px;
+            margin: 10px 2px;
+            background: rgb(255,200,200);
+        }
+        </style>
     </head>
     <body>
             <h1>ZSON.js</h1>
@@ -15,12 +25,13 @@
             <h3>Convert JSON to ZSON</h3>
             <textarea cols='50' rows='8' id='json-input' placeholder='Put your JSON here'></textarea>
             <br />
+            <div class='error-box' id='error-input'></div>
             <input type='text' id='filename-output' value='test.zson' />
             <button  id='to_zson'>To ZSON! </button>
             <h3>Convert ZSON to JSON</h3>
             <input type='file' id='filename-input' />
             <br />
+            <div class='error-box' id='error-output'></div>
             <textarea cols='50' rows='8' id='json-output'></textarea>
-            
     </body>
 </html>
