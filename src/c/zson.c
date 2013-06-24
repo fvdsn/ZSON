@@ -22,9 +22,7 @@ int mapfile(FILE *f, const char **fptr, size_t *fsize){
 
 int minsize32[] = {
     1,1,1,1,
-    2,3,5,9,
-    2,3,5,9,
-    5,9,
+    2,3,5,9, 2,3,5,9, 5,9,
     6,4,8,12,
     5,5,
     5,5,5,5, 5,5,5,5, 5,5
@@ -32,9 +30,7 @@ int minsize32[] = {
 
 int minsize64[] = {
     1,1,1,1,
-    2,3,5,9,
-    2,3,5,9,
-    5,9,
+    2,3,5,9, 2,3,5,9, 5,9,
     10,4,8,12,
     9,9,
     9,9,9,9, 9,9,9,9, 9,9
@@ -42,9 +38,7 @@ int minsize64[] = {
 
 int headersize32[] = {
     1,1,1,1,
-    1,1,1,1,
-    1,1,1,1,
-    1,1,
+    1,1,1,1, 1,1,1,1, 1,1,
     5,1,1,1,
     5,5,
     5,5,5,5, 5,5,5,5, 5,5
@@ -52,9 +46,7 @@ int headersize32[] = {
 
 int headersize64[] = {
     1,1,1,1,
-    1,1,1,1,
-    1,1,1,1,
-    1,1,
+    1,1,1,1, 1,1,1,1, 1,1,
     9,1,1,1,
     9,9,
     9,9,9,9, 9,9,9,9, 9,9
@@ -147,7 +139,9 @@ zsnode_t* decode(const char *src, size_t maxsize, int bit64){
                     z->length = innersize - 1;
                     break;
                 case ZSON_OBJECT:
+                    break;
                 case ZSON_ARRAY:
+
                 default:
                     break;
             }
@@ -155,6 +149,7 @@ zsnode_t* decode(const char *src, size_t maxsize, int bit64){
     }
     return z;
 }
+
 const char* TYPENAME[256] = {
     "ZSON_PADDING",
     "ZSON_NULL",
