@@ -32,6 +32,7 @@ enum ZSON_entity_type{
     ZSON_ARRAY_UINT64,
     ZSON_ARRAY_FLOAT32,
     ZSON_ARRAY_FLOAT64,
+    ZSON_TYPE_COUNT,
 };
 
 typedef struct zsnode_t{
@@ -63,6 +64,7 @@ typedef struct zsnode_t{
     const char *key;
     const void *entity;
     size_t size;
+    size_t length;
 }zsnode_t;
 
 #endif
