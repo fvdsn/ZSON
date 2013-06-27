@@ -1,5 +1,6 @@
 #ifndef __ZSON_H__
 #define __ZSON_H__
+#include <stdbool.h>
 
 enum ZSON_entity_type{
     ZSON_PADDING = 0,
@@ -66,5 +67,27 @@ typedef struct zsnode_t{
     size_t size;
     size_t length;
 }zsnode_t;
+
+enum ZSON_decode_operation{
+    ZSON_CONTINUE = 0,
+    ZSON_SIBLING  = 1,
+    ZSON_ELDER    = 2,
+    ZSON_EXIT     = -1,
+};
+
+int zson_decode_path(const char *path, int(*iter)(zsnode_t *node));
+int zson_decode_file(FILE *f, int (*iter)(zsnode_t* node));
+int zson_decode_memory(const void *mem, size_t len, int (*iter)(zsnode_t* node));
+
+int         zson_get_type(zsnode_t *z);
+bool        zson_is_number(zsnode_t *z);
+double      zson_get_number(zsnode_t *z);
+bool        zson_is_string(zsnode_t *z);
+const char* zson_get_string(zsnode_t *z);
+bool        zson_is_array(zsnode_t *z);
+bool        zson_is_object(zsnode_t *z);
+size_t      zson_get_length(zsnode_t *z);
+const char* zson_get_key(zsnode_t *z);
+void *      zson_get_content_ptr(zsnode_t *z);
 
 #endif

@@ -139,11 +139,63 @@ zsnode_t* decode(const char *src, size_t maxsize, int bit64){
                     z->length = innersize - 1;
                     break;
                 case ZSON_OBJECT:
+                {
+                    size_t offset  = headersize;
+                    size_t length  = 0;
+                    zsnode_t *last = NULL;
+                    zsnode_t *el   = NULL;
+                    zsnode_t *key  = NULL;
+                    
+                    while(offset < size){
+                        key = decode(src + offset, maxsize - offset, bit64);
+                        if(key->type < ZSON_STRING || key->type > ZSON_STRING12){
+                            return NULL; // key must be a string
+                        }
+                        offset += key->size;
+                        el = decode(src + offset, maxsize - offset, bit64);
+                        if(!el){
+                            return NULL; // error propagation
+                        }else if(!last){
+                            z->value.child = el;
+                        }else{
+                            last->next = el;
+                        }
+                        last = el;
+                        el->key = key->value.string;
+                        length++;
+                        offset += el->size;
+                        free(key);
+                    }
+                    
+                    z->length = length;
                     break;
+                }
                 case ZSON_ARRAY:
+                {
+                    size_t offset  = headersize;
+                    size_t length  = 0;
+                    zsnode_t *last = NULL;
+                    zsnode_t *el   = NULL;
 
-                default:
+                    while(offset < size){
+                        el = decode(src + offset, maxsize - offset, bit64);
+                        if(!el){
+                            return NULL; //error propagation
+                        }else if(!last){ //first element
+                            z->value.child = el;
+                        }else{
+                            last->next = el;
+                        }
+                        last = el;
+                        length++;
+                        offset += el->size;
+                    }
+
+                    z->length = length;
                     break;
+                }
+                default:
+                    return NULL;
             }
             break;
     }
@@ -188,7 +240,7 @@ void zsnode_fprintf(FILE *out, zsnode_t *z){
     if(z){
         fprintf(out,"ZSON NODE:\n");
         fprintf(out,"\ttype: %d, %s\n",z->type,TYPENAME[z->type < ZSON_TYPE_COUNT ? z->type: ZSON_TYPE_COUNT]);
-        fprintf(out,"\tvalue:");
+        fprintf(out,"\tvalue: ");
         switch(z->type){
             case ZSON_PADDING: 
             case ZSON_NULL:     break;
@@ -208,15 +260,29 @@ void zsnode_fprintf(FILE *out, zsnode_t *z){
             case ZSON_STRING4:
             case ZSON_STRING8:
             case ZSON_STRING12: fprintf(out,"%s",z->value.string); break;
+            case ZSON_OBJECT:
+            case ZSON_ARRAY:    fprintf(out,"childptr: %p",z->value.child); break;
         }
         fprintf(out,"\n");
-        fprintf(out,"\tnext:%p\n",z->next);
-        fprintf(out,"\tentity:%p\n",z->entity);
-        fprintf(out,"\tkey:%s\n",z->key);
-        fprintf(out,"\tsize:%d\n",z->size);
-        fprintf(out,"\tlength:%d\n",z->length);
+        fprintf(out,"\tnext: %p\n",z->next);
+        fprintf(out,"\tentity: %p\n",z->entity);
+        fprintf(out,"\tkey: %s\n",z->key);
+        fprintf(out,"\tsize: %d\n",z->size);
+        fprintf(out,"\tlength: %d\n",z->length);
     }else{
         fprintf(out,"ZSON NODE: NULL\n");
+    }
+}
+void zsnode_fprintf_rec(FILE* out, zsnode_t* z){
+    zsnode_fprintf(out,z);
+    if(z->type == ZSON_ARRAY || z->type == ZSON_OBJECT){
+        fprintf(out,"<<<\n");
+        zsnode_t *c = z->value.child;
+        while(c){
+            zsnode_fprintf_rec(out,c);
+            c = c->next;
+        }
+        fprintf(out,">>>\n");
     }
 }
 
@@ -246,7 +312,7 @@ int main(int argc, char** argv){
     mapfile(input_f, &input, &inputlen);
     fprintf(stdout,"File size: %d\n",inputlen);
     zsnode_t *z = decode(input,inputlen,0);
-    zsnode_fprintf(stdout,z);
+    zsnode_fprintf_rec(stdout,z);
     
     /*if(argc == 4){
         output_f = fopen(argv[3],"w");
