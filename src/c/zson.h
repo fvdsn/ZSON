@@ -60,12 +60,16 @@ typedef struct zsnode_t{
         uint16_t *auint16;
         uint32_t *auint32;
         uint64_t *auint64;
+        void* ptr;
     } value;
     struct zsnode_t *next;
     const char *key;
+    const char *error;
+    const void *content;
     const void *entity;
-    size_t size;
+    size_t start;
     size_t length;
+    size_t size;
 }zsnode_t;
 
 enum ZSON_decode_operation{
@@ -75,19 +79,40 @@ enum ZSON_decode_operation{
     ZSON_EXIT     = -1,
 };
 
-int zson_decode_path(const char *path, int(*iter)(zsnode_t *node));
-int zson_decode_file(FILE *f, int (*iter)(zsnode_t* node));
-int zson_decode_memory(const void *mem, size_t len, int (*iter)(zsnode_t* node));
+typedef struct zson_t{
+    FILE *file;
+    const char *path;
+    const char *mem;
+    size_t mem_size;
+    zsnode_t *stack;
+    size_t stack_size;
+    size_t stack_index;
+} zson_t;
 
-int         zson_get_type(zsnode_t *z);
-bool        zson_is_number(zsnode_t *z);
-double      zson_get_number(zsnode_t *z);
-bool        zson_is_string(zsnode_t *z);
-const char* zson_get_string(zsnode_t *z);
-bool        zson_is_array(zsnode_t *z);
-bool        zson_is_object(zsnode_t *z);
-size_t      zson_get_length(zsnode_t *z);
-const char* zson_get_key(zsnode_t *z);
-void *      zson_get_content_ptr(zsnode_t *z);
+zson_t* zson_decode_path(const char *path);
+zson_t* zson_decode_file(FILE *f);
+zson_t* zson_decode_memory(const void *mem, size_t len);
+int zson_free(zson_t *z);
+
+int zson_next(zson_t *z);
+int zson_next_sibling(zson_t *z);
+int zson_next_elder(zson_t *z);
+int zson_has_child(zson_t *z);
+int zson_has_error(zson_t *z);
+
+int  zson_get_type(zson_t *z);
+bool zson_is_null(zson_t *z);
+bool zson_is_number(zson_t *z);
+bool zson_is_bool(zson_t *z);
+bool zson_is_string(zson_t *z);
+bool zson_is_array(zson_t *z);
+bool zson_is_object(zson_t *z);
+bool zson_is_typedarray(zson_t *z);
+
+bool        zson_get_bool(zson_t *z);
+double      zson_get_number(zson_t *z);
+const char* zson_get_string(zson_t *z);
+const char* zson_get_key(zson_t *z);
+const void* zson_get_content_ptr(zson_t *z);
 
 #endif
