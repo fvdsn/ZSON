@@ -36,10 +36,21 @@ enum ZSON_entity_type{
     ZSON_TYPE_COUNT,
 };
 
+enum ZSON_errors{
+    ZSON_SUCCESS = 0,
+    ZSON_ERROR_NULL_ARG,
+    ZSON_ERROR_FILE_READ,
+    ZSON_ERROR_INVALID_HEADER,
+    ZSON_ERROR_INVALID_SIZE,
+    ZSON_ERROR_RUNAWAY_STRING,
+    ZSON_ERROR_INVALID_PADDING,
+    ZSON_ERROR_INVALID_KEY,
+    ZSON_ERROR_COUNT
+};
+
 typedef struct zsnode_t{
     int type;
     union{
-        struct zsnode_t *child;
         const char *string;
         int      boolean;
         float    float32;
@@ -60,9 +71,8 @@ typedef struct zsnode_t{
         uint16_t *auint16;
         uint32_t *auint32;
         uint64_t *auint64;
-        void* ptr;
+        const void* ptr;
     } value;
-    struct zsnode_t *next;
     const char *key;
     const char *error;
     const void *content;
@@ -70,14 +80,11 @@ typedef struct zsnode_t{
     size_t start;
     size_t length;
     size_t size;
+    size_t content_start;
+    bool has_child;
+    bool parsed;
+    bool has_next;
 }zsnode_t;
-
-enum ZSON_decode_operation{
-    ZSON_CONTINUE = 0,
-    ZSON_SIBLING  = 1,
-    ZSON_ELDER    = 2,
-    ZSON_EXIT     = -1,
-};
 
 typedef struct zson_t{
     FILE *file;
@@ -87,18 +94,22 @@ typedef struct zson_t{
     zsnode_t *stack;
     size_t stack_size;
     size_t stack_index;
+    bool bit64;
+    const char *error;
 } zson_t;
 
 zson_t* zson_decode_path(const char *path);
 zson_t* zson_decode_file(FILE *f);
 zson_t* zson_decode_memory(const void *mem, size_t len);
-int zson_free(zson_t *z);
+void zson_free(zson_t *z);
 
-int zson_next(zson_t *z);
-int zson_next_sibling(zson_t *z);
-int zson_next_elder(zson_t *z);
-int zson_has_child(zson_t *z);
-int zson_has_error(zson_t *z);
+bool zson_next(zson_t *z);
+bool zson_child(zson_t *z);
+bool zson_parent(zson_t *z);
+bool zson_has_child(zson_t *z);
+bool zson_has_next(zson_t *z);
+bool zson_has_parent(zson_t *z);
+bool zson_has_error(zson_t *z);
 
 int  zson_get_type(zson_t *z);
 bool zson_is_null(zson_t *z);
