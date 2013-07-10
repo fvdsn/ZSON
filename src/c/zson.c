@@ -14,9 +14,9 @@
 static inline zsnode_t *zson_get_node(zson_t *z){
     return z->stack + z->stack_index;
 }
-static inline void zson_set_error(zson_t *z, int errno, const char *msg){
-    //z->error = errno;
-    //z->error_message = msg;
+static inline void zson_set_error(zson_t *z, int error, const char *msg){
+    z->error = error;
+    z->error_message = msg;
 }
 static void zson_push_node(zson_t *z){
     z->stack_index++;
@@ -54,13 +54,13 @@ static int mapfile(FILE *f, const char **fptr, size_t *fsize){
 zson_t *zson_decode_path(const char *path){
     zson_t *z = zson_new();
     if(!path){
-        z->error = "cannot read NULL path";
+        zson_set_error(z, ZSON_ERROR_NULL_ARG, "cannot read NULL path");
         return z;
     }
     FILE *f = fopen(path,"r");
 
     if(!f){
-        z->error = "could not read input file";
+        zson_set_error(z, ZSON_ERROR_FILE_READ, "could not read input file");
         return z;
     }
     z->path = path;
@@ -72,7 +72,7 @@ zson_t *zson_decode_file(FILE *f){
     zson_t *z = zson_new();
     // *f; crash if file is NULL ?
     if(!f){
-        z->error = "cannot decode NULL file";
+        zson_set_error(z, ZSON_ERROR_NULL_ARG, "cannot decode NULL file");
         return z;
     }
     z->path = NULL;
@@ -83,7 +83,7 @@ zson_t *zson_decode_file(FILE *f){
 zson_t *zson_decode_memory(const void *mem, size_t len){
     zson_t *z = zson_new();
     if(!mem){
-        z->error = "cannot decode NULL";
+        zson_set_error(z, ZSON_ERROR_NULL_ARG, "cannot decode NULL");
         return z;
     }
     z->path = NULL;
@@ -199,7 +199,7 @@ static uint8_t subsize[] = {
 };
 
 #define GET_VAL(src,offset,type)  (((type*)(src + (offset)))[0])
-static int zsnode_decode( zsnode_t *z, const char *src, size_t start, 
+static bool _decode( zson_t *zd, zsnode_t *z, const char *src, size_t start, 
                    size_t maxsize, bool keyval, bool bit64 ){
     memset(z,0,sizeof(zsnode_t));
     const char* origin = src;
@@ -207,7 +207,6 @@ static int zsnode_decode( zsnode_t *z, const char *src, size_t start,
     int header  = src[0];
     size_t size = 0;
 
-    z->error = NULL;
     z->type = header;
     z->start = start;
     z->entity = src;
@@ -215,9 +214,8 @@ static int zsnode_decode( zsnode_t *z, const char *src, size_t start,
     z->has_next = false;
 
     if(header == 0 || header >= ZSON_TYPE_COUNT){
-        z->error = "invalid header";
-        fprintf(stderr,"invalid header:%d at:%d\n",header,start);
-        return -1;
+        zson_set_error(zd, ZSON_ERROR_INVALID_HEADER, "invalid header");
+        return false;
     }
 
     int minsize = bit64 ? minsize64[header] : minsize32[header];
@@ -225,8 +223,8 @@ static int zsnode_decode( zsnode_t *z, const char *src, size_t start,
     z->content_start = headersize; 
 
     if(minsize > maxsize){
-        z->error = "exceeding parent size";
-        return -1; 
+        zson_set_error(zd, ZSON_ERROR_INVALID_SIZE, "exceeding parent size");
+        return false; 
     }
 
     z->content = src + headersize;
@@ -276,8 +274,9 @@ static int zsnode_decode( zsnode_t *z, const char *src, size_t start,
         case ZSON_STRING12:
             z->value.string  = src + 1;
             if(src[z->size -1] != 0){
-                z->error = "strings must be null terminated";
-                return -1; 
+                zson_set_error( zd, ZSON_ERROR_RUNAWAY_STRING,
+                               "strings must be null terminated");
+                return false; 
             }
             break;
         default:
@@ -289,18 +288,20 @@ static int zsnode_decode( zsnode_t *z, const char *src, size_t start,
             }
 
             if(size > maxsize){
-                z->error = "size exceeds parent size";
-                return -1;
+                zson_set_error( zd, ZSON_ERROR_INVALID_SIZE,
+                                "size exceeds parent size");
+                return false;
             }else if( size < minsize){
-                z->error = "size too small";
-                return -1;
+                zson_set_error(zd, ZSON_ERROR_INVALID_SIZE, "size too small");
+                return false;
             }
             z->size = size;
 
             if (header == ZSON_STRING){
                 if(size - headersize <= 0 || src[z->size -1] != 0){
-                    z->error = "zero length strings must also be null terminated";
-                    return -1;
+                    zson_set_error( zd, ZSON_ERROR_RUNAWAY_STRING,
+                                    "zero length strings must also be null terminated");
+                    return false;
                 }
                 z->value.string = src + headersize;
                 z->length = size - headersize - 1;
@@ -314,8 +315,9 @@ static int zsnode_decode( zsnode_t *z, const char *src, size_t start,
                     int padding = subsize[z->type];
                         padding = padding <= 1 ? 0 : (padding - start % padding) % padding;
                     if( headersize + padding > size){
-                        z->error = "padding going outside of entity";
-                        return -1;
+                        zson_set_error( zd, ZSON_ERROR_INVALID_PADDING, 
+                                        "padding going outside of entity");
+                        return false;
                     }
                     z->value.ptr = src + headersize + padding;
                     z->length = (z->size - headersize - padding) / subsize[z->type];
@@ -327,12 +329,13 @@ static int zsnode_decode( zsnode_t *z, const char *src, size_t start,
 
     if(keyval){
         if(z->type < ZSON_STRING || z->type > ZSON_STRING12){
-            z->error = "key value pairs must start with a string";
-            return -1;
+            zson_set_error( zd, ZSON_ERROR_INVALID_KEY, 
+                            "key value pairs must start with a string" );
+            return false;
         }
-        if(zsnode_decode( z, origin, start+size, 
-                           maxsize-size, false, bit64 ) < 0){
-            return -1;
+        if(!_decode(zd, z, origin, start+size, 
+                           maxsize-size, false, bit64 )){
+            return false;
         }
         z->key = src + headersize;
         z->size += size;
@@ -349,30 +352,30 @@ bool zson_next(zson_t *z){
     if(zson_has_error(z)){
         return false;
     }else if(z->stack_index == 0 && !cz->parsed){
-        zsnode_decode( cz, z->mem, 0, z->mem_size, false, z->bit64);
-        return !cz->error;
+        _decode(z, cz, z->mem, 0, z->mem_size, false, z->bit64);
+        return !zson_has_error(z);
     }else if(cz->has_next){
         zsnode_t *pz = z->stack + z->stack_index - 1;
         size_t start = cz->start + cz->size;
-        zsnode_decode( cz, z->mem, start, pz->size + pz->start - start, 
+        _decode(z, cz, z->mem, start, pz->size + pz->start - start, 
                        pz->type == ZSON_OBJECT, z->bit64 );
         cz->has_next = cz->start + cz->size < pz->start + pz->size;
-        return !cz->error;
+        return !zson_has_error(z);
     }
     return false;
 }
 bool zson_child(zson_t *z){
     zsnode_t *pz = z->stack + z->stack_index;
-    if(zson_has_error(z)){
+    if(zson_has_error(z) || !pz->parsed){
         return false;
     }else if(pz->has_child){
         zson_push_node(z);
         zsnode_t *cz = z->stack + z->stack_index;
-        zsnode_decode( cz, z->mem, pz->start + pz->content_start, 
+        _decode(z, cz, z->mem, pz->start + pz->content_start, 
                               pz->size - pz->content_start, 
                               pz->type == ZSON_OBJECT, z->bit64 ); 
         cz->has_next = cz->start + cz->size < pz->start + pz->size;
-        return !cz->error;
+        return !zson_has_error(z);
     }
 
     return false;
@@ -396,15 +399,12 @@ bool zson_has_parent(zson_t *z){
     return z->stack_index > 0;
 }
 bool zson_has_error(zson_t *z){
-    return (bool)z->error || (bool)(z->stack[z->stack_index].error);
+    return (bool)z->error; 
 }
 void zson_print_error(FILE *out, zson_t *z){
     if(zson_has_error(z)){
-        if(z->error){
-            fprintf(out,"ZSON_ERROR: %s\n",z->error);
-        }else{
-            fprintf(out,"ZSON_ERROR AT OFFSET %d : %s\n",zson_get_node(z)->start, zson_get_node(z)->error);
-        }
+        fprintf( out,"ZSON_ERROR #%d AT OFFSET %d : %s\n",
+                 z->error, zson_get_node(z)->start, z->error_message );
     }
 }
 static void zson_print_mem(FILE* out, zson_t *z){
@@ -508,7 +508,6 @@ void zson_print_full_node(FILE *out, zson_t *z){
         zson_print_value(out,z);
         fprintf(out,"\n");
         fprintf(out,"\tkey: %s\n",zn->key);
-        fprintf(out,"\terror: %s\n",zn->error);
         fprintf(out,"\tcontent: %p\n",zn->content);
         fprintf(out,"\tentity: %p\n",zn->entity);
         fprintf(out,"\tstart: %d\n",zn->start);

@@ -74,7 +74,6 @@ typedef struct zsnode_t{
         const void* ptr;
     } value;
     const char *key;
-    const char *error;
     const void *content;
     const void *entity;
     size_t start;
@@ -95,7 +94,8 @@ typedef struct zson_t{
     size_t stack_size;
     size_t stack_index;
     bool bit64;
-    const char *error;
+    int error;
+    const char *error_message;
 } zson_t;
 
 zson_t* zson_decode_path(const char *path);
