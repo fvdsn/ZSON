@@ -94,6 +94,7 @@ typedef struct zson_t{
     size_t stack_size;
     size_t stack_index;
     bool bit64;
+    bool private_file;
     int error;
     const char *error_message;
 } zson_t;
@@ -110,6 +111,7 @@ bool zson_has_child(zson_t *z);
 bool zson_has_next(zson_t *z);
 bool zson_has_parent(zson_t *z);
 bool zson_has_error(zson_t *z);
+void zson_to_json(FILE *f, zson_t *z);
 
 int  zson_get_type(zson_t *z);
 bool zson_is_null(zson_t *z);

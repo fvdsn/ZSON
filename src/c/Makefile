@@ -1,3 +1,3 @@
 
 all:
-	gcc  -std=gnu99 -Wall zson.c -o zson
+	gcc  -std=gnu99 -g -Wall zson.c -o zson

@@ -65,6 +65,7 @@ zson_t *zson_decode_path(const char *path){
     }
     z->path = path;
     z->file = f;
+    z->private_file = true;
     mapfile(f, &(z->mem), &(z->mem_size));
     return z;
 }
@@ -155,7 +156,14 @@ const void* zson_get_content_ptr(zson_t *z){
 void zson_free(zson_t *z){
     free(z->stack);
     free(z);
-    //TODO close files etc.
+    if(z->mem){
+        munmap((void*)z->mem,z->mem_size);
+    }
+    /* FIXME 
+    if(z->private_file){
+        fclose(z->file);
+    }
+    */
 }
 
 static uint8_t minsize32[] = {
@@ -473,7 +481,14 @@ void zson_print(FILE *out, zson_t *z){
 }
 void zson_print_value(FILE *out, zson_t *z){
     zsnode_t *zn = zson_get_node(z);
+    if(!zn){
+        fprintf(out,"ERROR: NULL NODE!");
+    }
     switch(zn->type){
+        case ZSON_PADDING:  fprintf(out,"padding"); break;
+        case ZSON_NULL:     fprintf(out,"null");    break;
+        case ZSON_TRUE:     fprintf(out,"true");    break;
+        case ZSON_FALSE:    fprintf(out,"false");   break;
         case ZSON_INT8:     fprintf(out,"%d",zn->value.int8);    break;
         case ZSON_INT16:    fprintf(out,"%d",zn->value.int16);   break;
         case ZSON_INT32:    fprintf(out,"%d",zn->value.int32);   break;
@@ -487,7 +502,10 @@ void zson_print_value(FILE *out, zson_t *z){
         case ZSON_STRING: 
         case ZSON_STRING4:
         case ZSON_STRING8:
-        case ZSON_STRING12: fprintf(out,"%s",zn->value.string); break;
+        case ZSON_STRING12: fprintf(out,"\"%s\"",zn->value.string); break;
+        case ZSON_ARRAY:    fprintf(out,"[]");  break;
+        case ZSON_OBJECT:    fprintf(out,"{}");  break;
+        default: fprintf(out,"ERROR: UNKNOWN TYPE!"); break;
     }
 }
 void zson_print_node(FILE *out, zson_t *z){
@@ -521,6 +539,52 @@ void zson_print_full_node(FILE *out, zson_t *z){
         fprintf(out,"ZSON NODE: NULL\n");
     }
 }
+void zson_to_json(FILE *out, zson_t *z){
+    if(!zson_get_node(z) || !zson_get_node(z)->parsed){
+        zson_next(z);
+    }
+
+    while(true){
+        if(zson_has_error(z)){
+            zson_print_error(out,z);
+            return;
+        }
+        int type = zson_get_type(z);
+
+        if(zson_child(z)){
+            if(type == ZSON_ARRAY){
+                fprintf(out,"[ ");
+            }else{
+                fprintf(out,"{ ");
+            }
+            continue;
+        }
+
+        if(zson_get_key(z)){
+            fprintf(out,"\"%s\":",zson_get_key(z));
+        }
+        zson_print_value(out,z);
+
+        if(zson_next(z)){
+            fprintf(out,", ");
+            continue;
+        }
+
+        if(zson_parent(z)){
+            if(zson_get_type(z) == ZSON_ARRAY){
+                fprintf(out,"]");
+            }else{
+                fprintf(out,"}");
+            }
+            if(!zson_next(z)){
+                break;
+            }
+        }
+
+        break;
+    }
+    fprintf(out,"\n");
+}
 
 int main(int argc, char** argv){
     //int mode      = DECODE;
@@ -539,13 +603,16 @@ int main(int argc, char** argv){
 
     zson_t *z = zson_decode_path(argv[2]); 
     
-    while(zson_child(z) || zson_next(z) || (zson_parent(z) && zson_next(z))){
+    zson_to_json(stdout,z);
+
+    /*while(zson_child(z) || zson_next(z) || (zson_parent(z) && zson_next(z))){
         zson_print_node(stdout,z);
-    }
-    if(zson_has_error(z)){
+    }*/
+
+    /*if(zson_has_error(z)){
         zson_print_error(stdout,z);
         zson_print_mem(stdout,z);
-    }
+    }*/
 
     zson_free(z);
     
