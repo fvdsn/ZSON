@@ -67,6 +67,9 @@ zson_t *zson_decode_path(const char *path){
     z->file = f;
     z->private_file = true;
     mapfile(f, &(z->mem), &(z->mem_size));
+    if(!zson_next(z) && !zson_has_error(z)){
+        zson_set_error(z, ZSON_ERROR_EMPTY, "the file to decode has no content");
+    }
     return z;
 }
 zson_t *zson_decode_file(FILE *f){
@@ -79,6 +82,9 @@ zson_t *zson_decode_file(FILE *f){
     z->path = NULL;
     z->file = f;
     mapfile(f,&(z->mem),&(z->mem_size));
+    if(!zson_next(z) && !zson_has_error(z)){
+        zson_set_error(z, ZSON_ERROR_EMPTY, "the file to decode has no content");
+    }
     return z;
 }
 zson_t *zson_decode_memory(const void *mem, size_t len){
@@ -91,6 +97,9 @@ zson_t *zson_decode_memory(const void *mem, size_t len){
     z->file = NULL;
     z->mem = mem;
     z->mem_size = len;
+    if(!zson_next(z) && !zson_has_error(z)){
+        zson_set_error(z, ZSON_ERROR_EMPTY, "the file to decode has no content");
+    }
     return z;
 }
 
@@ -409,12 +418,6 @@ bool zson_has_parent(zson_t *z){
 bool zson_has_error(zson_t *z){
     return (bool)z->error; 
 }
-void zson_print_error(FILE *out, zson_t *z){
-    if(zson_has_error(z)){
-        fprintf( out,"ZSON_ERROR #%d AT OFFSET %d : %s\n",
-                 z->error, zson_get_node(z)->start, z->error_message );
-    }
-}
 static void zson_print_mem(FILE* out, zson_t *z){
     if(z){
         fprintf(out,"MEM[%d]: ",z->mem_size);
@@ -429,6 +432,13 @@ static void zson_print_mem(FILE* out, zson_t *z){
             }
         }
         fprintf(out,"\n");
+    }
+}
+void zson_print_error(FILE *out, zson_t *z){
+    if(zson_has_error(z)){
+        fprintf( out,"ZSON_ERROR #%d AT OFFSET %d : %s\n",
+                 z->error, zson_get_node(z)->start, z->error_message );
+        zson_print_mem(out,z);
     }
 }
 const char* TYPENAME[256] = {
@@ -540,10 +550,6 @@ void zson_print_full_node(FILE *out, zson_t *z){
     }
 }
 void zson_to_json(FILE *out, zson_t *z){
-    if(!zson_get_node(z) || !zson_get_node(z)->parsed){
-        zson_next(z);
-    }
-
     while(true){
         if(zson_has_error(z)){
             zson_print_error(out,z);
