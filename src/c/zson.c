@@ -406,6 +406,10 @@ bool zson_parent(zson_t *z){
     }
     return false;
 }
+bool zson_iterate(zson_t *z){
+    return (zson_child(z) || zson_next(z) || (zson_parent(z) && zson_next(z))) 
+           && !zson_has_error(z);
+}
 bool zson_has_child(zson_t *z){
     return zson_get_node(z)->has_child;
 }
@@ -417,6 +421,14 @@ bool zson_has_parent(zson_t *z){
 }
 bool zson_has_error(zson_t *z){
     return (bool)z->error; 
+}
+bool zson_can_iterate(zson_t *z){
+    if(zson_has_error(z)){
+        return false;
+    }
+    return    zson_get_node(z)->has_child 
+           || zson_get_node(z)->has_next 
+           || (z->stack_index > 0 && z->stack[z->stack_index-1].has_next);
 }
 static void zson_print_mem(FILE* out, zson_t *z){
     if(z){
@@ -483,6 +495,7 @@ void zson_print(FILE *out, zson_t *z){
         fprintf(out,"\tmem_size: %d\n",z->mem_size);
         fprintf(out,"\tstack: %p\n",z->stack);
         fprintf(out,"\tstack_size: %d\n",z->stack_size);
+        fprintf(out,"\tstack_allocated_size: %d\n",z->stack_size);
         fprintf(out,"\tstack_index: %d\n",z->stack_index);
         fprintf(out,"\tbit64: %d\n",(int)z->bit64);
     }else{

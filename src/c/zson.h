@@ -93,6 +93,7 @@ typedef struct zson_t{
     size_t mem_size;
     zsnode_t *stack;
     size_t stack_size;
+    size_t stack_allocated_size;
     size_t stack_index;
     bool bit64;
     bool private_file;
@@ -107,10 +108,14 @@ void zson_free(zson_t *z);
 
 bool zson_next(zson_t *z);
 bool zson_child(zson_t *z);
+bool zson_first_child(zson_t *z);
 bool zson_parent(zson_t *z);
+void zson_reset(zson_t *z);
+bool zson_iterate(zson_t *z);
 bool zson_has_child(zson_t *z);
 bool zson_has_next(zson_t *z);
 bool zson_has_parent(zson_t *z);
+bool zson_can_iterate(zson_t *z);
 bool zson_has_error(zson_t *z);
 void zson_to_json(FILE *f, zson_t *z);
 
