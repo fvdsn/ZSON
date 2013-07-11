@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 enum ZSON_entity_type{
-    ZSON_PADDING = 0,
+    ZSON_NO_ENT = 0,
     ZSON_NULL,
     ZSON_TRUE,
     ZSON_FALSE,
@@ -82,8 +82,9 @@ typedef struct zsnode_t{
     size_t size;
     size_t content_start;
     bool has_child;
-    bool parsed;
     bool has_next;
+    bool visited;
+    bool iterated;
 }zsnode_t;
 
 typedef struct zson_t{
@@ -97,6 +98,7 @@ typedef struct zson_t{
     size_t stack_index;
     bool bit64;
     bool private_file;
+    bool started;
     int error;
     const char *error_message;
 } zson_t;
@@ -108,7 +110,6 @@ void zson_free(zson_t *z);
 
 bool zson_next(zson_t *z);
 bool zson_child(zson_t *z);
-bool zson_first_child(zson_t *z);
 bool zson_parent(zson_t *z);
 void zson_reset(zson_t *z);
 bool zson_iterate(zson_t *z);
@@ -117,9 +118,14 @@ bool zson_has_next(zson_t *z);
 bool zson_has_parent(zson_t *z);
 bool zson_can_iterate(zson_t *z);
 bool zson_has_error(zson_t *z);
+void zson_print_error(FILE*out, zson_t *z);
 void zson_to_json(FILE *f, zson_t *z);
+void zson_visit(zson_t *z);
+void zson_unvisit(zson_t *z);
+bool zson_visited(zson_t *z);
 
 int  zson_get_type(zson_t *z);
+int  zson_get_parent_type(zson_t *z);
 bool zson_is_null(zson_t *z);
 bool zson_is_number(zson_t *z);
 bool zson_is_bool(zson_t *z);
@@ -133,5 +139,6 @@ double      zson_get_number(zson_t *z);
 const char* zson_get_string(zson_t *z);
 const char* zson_get_key(zson_t *z);
 const void* zson_get_content_ptr(zson_t *z);
+size_t      zson_get_depth(zson_t *z);
 
 #endif

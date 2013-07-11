@@ -8,8 +8,6 @@
 #include <errno.h>
 #include "zson.h"
 
-#define ENCODE 0
-#define DECODE 1
 
 static inline zsnode_t *zson_get_node(zson_t *z){
     return z->stack + z->stack_index;
@@ -106,6 +104,9 @@ zson_t *zson_decode_memory(const void *mem, size_t len){
 int zson_get_type(zson_t *z){
     return zson_get_node(z)->type;
 }
+int zson_get_parent_type(zson_t *z){
+    return z->stack_index > 0 ? z->stack[z->stack_index-1].type : ZSON_NO_ENT;
+}
 bool zson_is_number(zson_t *z){
     zsnode_t *zn = zson_get_node(z);
     return zn->type >= ZSON_INT8 && zn->type <= ZSON_FLOAT64;
@@ -162,6 +163,9 @@ const char* zson_get_key(zson_t *z){
 const void* zson_get_content_ptr(zson_t *z){
     return zson_get_node(z)->content;
 }
+size_t zson_get_depth(zson_t *z){
+    return z->stack_index;
+}
 void zson_free(zson_t *z){
     free(z->stack);
     free(z);
@@ -183,7 +187,7 @@ static uint8_t minsize32[] = {
     5,5,5,5, 5,5,5,5, 5,5
 };
 
-static uint8_t minsize64[] = {
+static uint8_t minsize64[256] = {
     1,1,1,1,
     2,3,5,9, 2,3,5,9, 5,9,
     10,4,8,12,
@@ -191,7 +195,7 @@ static uint8_t minsize64[] = {
     9,9,9,9, 9,9,9,9, 9,9
 };
 
-static uint8_t headersize32[] = {
+static uint8_t headersize32[256] = {
     1,1,1,1,
     1,1,1,1, 1,1,1,1, 1,1,
     5,1,1,1,
@@ -199,7 +203,7 @@ static uint8_t headersize32[] = {
     5,5,5,5, 5,5,5,5, 5,5
 };
 
-static uint8_t headersize64[] = {
+static uint8_t headersize64[256] = {
     1,1,1,1,
     1,1,1,1, 1,1,1,1, 1,1,
     9,1,1,1,
@@ -207,7 +211,7 @@ static uint8_t headersize64[] = {
     9,9,9,9, 9,9,9,9, 9,9
 };
 
-static uint8_t subsize[] = {
+static uint8_t subsize[256] = {
     0,0,0,0,
     0,0,0,0, 0,0,0,0, 0,0,
     0,0,0,0,
@@ -220,72 +224,44 @@ static bool _decode( zson_t *zd, zsnode_t *z, const char *src, size_t start,
                    size_t maxsize, bool keyval, bool bit64 ){
     memset(z,0,sizeof(zsnode_t));
     const char* origin = src;
-    src = src+start;
-    int header  = src[0];
-    size_t size = 0;
+    int header  = src[start];
+    int minsize = bit64 ? minsize64[header] : minsize32[header];
+    int headersize = bit64 ? headersize64[header] : headersize32[header];
+    size_t size = minsize;
 
     z->type = header;
     z->start = start;
     z->entity = src;
-    z->parsed = true;
     z->has_next = false;
+    z->content_start = headersize; 
+    z->content = src + headersize;
+    z->size = minsize;
 
     if(header == 0 || header >= ZSON_TYPE_COUNT){
         zson_set_error(zd, ZSON_ERROR_INVALID_HEADER, "invalid header");
         return false;
-    }
-
-    int minsize = bit64 ? minsize64[header] : minsize32[header];
-    int headersize = bit64 ? headersize64[header] : headersize32[header];
-    z->content_start = headersize; 
-
-    if(minsize > maxsize){
+    }else if(minsize > maxsize){
         zson_set_error(zd, ZSON_ERROR_INVALID_SIZE, "exceeding parent size");
         return false; 
     }
 
-    z->content = src + headersize;
-    z->size = minsize;
+    src = src+start;
 
     switch(header){
-        case ZSON_NULL:
-            break;
-        case ZSON_TRUE:
-            z->value.boolean = 1;
-            break;
-        case ZSON_FALSE:
-            z->value.boolean = 0;
-            break;
-        case ZSON_INT8:
-            z->value.int8 = (int8_t)src[1];
-            break;
-        case ZSON_INT16:
-            z->value.int16 = GET_VAL(src,1,int16_t);
-            break;
-        case ZSON_INT32:
-            z->value.int32 = GET_VAL(src,1,int32_t);
-            break;
-        case ZSON_INT64:
-            z->value.int64 = GET_VAL(src,1,int64_t);
-            break;
-        case ZSON_UINT8:
-            z->value.uint8 = (int8_t)src[1];
-            break;
-        case ZSON_UINT16:
-            z->value.uint16 = GET_VAL(src,1,uint16_t);
-            break;
-        case ZSON_UINT32:
-            z->value.uint32 = GET_VAL(src,1,uint32_t);
-            break;
-        case ZSON_UINT64:
-            z->value.uint64 = GET_VAL(src,1,uint64_t);
-            break;
-        case ZSON_FLOAT32:
-            z->value.float32 = GET_VAL(src,1,float);
-            break;
-        case ZSON_FLOAT64:
-            z->value.float64 = GET_VAL(src,1,double);
-            break;
+        case ZSON_NO_ENT:
+        case ZSON_NULL:     break;
+        case ZSON_TRUE:     z->value.boolean = 1;                           break;
+        case ZSON_FALSE:    z->value.boolean = 0;                           break;
+        case ZSON_INT8:     z->value.int8    = (int8_t)src[1];              break;
+        case ZSON_INT16:    z->value.int16   = GET_VAL(src,1,int16_t);      break;
+        case ZSON_INT32:    z->value.int32   = GET_VAL(src,1,int32_t);      break;
+        case ZSON_INT64:    z->value.int64   = GET_VAL(src,1,int64_t);      break;
+        case ZSON_UINT8:    z->value.uint8   = (int8_t)src[1];              break;
+        case ZSON_UINT16:   z->value.uint16  = GET_VAL(src,1,uint16_t);     break;
+        case ZSON_UINT32:   z->value.uint32  = GET_VAL(src,1,uint32_t);     break;
+        case ZSON_UINT64:   z->value.uint64  = GET_VAL(src,1,uint64_t);     break;
+        case ZSON_FLOAT32:  z->value.float32 = GET_VAL(src,1,float);        break;
+        case ZSON_FLOAT64:  z->value.float64 = GET_VAL(src,1,double);       break;
         case ZSON_STRING4:
         case ZSON_STRING8:
         case ZSON_STRING12:
@@ -298,21 +274,16 @@ static bool _decode( zson_t *zd, zsnode_t *z, const char *src, size_t start,
             break;
         default:
         {
-            if(bit64){
-                size = GET_VAL(src,1,uint64_t);
-            }else{
-                size = GET_VAL(src,1,uint32_t);
-            }
+            size = bit64 ? GET_VAL(src,1,uint64_t) : GET_VAL(src,1,uint32_t);
+            z->size = size;
 
             if(size > maxsize){
-                zson_set_error( zd, ZSON_ERROR_INVALID_SIZE,
-                                "size exceeds parent size");
+                zson_set_error( zd, ZSON_ERROR_INVALID_SIZE, "size exceeds parent size");
                 return false;
             }else if( size < minsize){
                 zson_set_error(zd, ZSON_ERROR_INVALID_SIZE, "size too small");
                 return false;
             }
-            z->size = size;
 
             if (header == ZSON_STRING){
                 if(size - headersize <= 0 || src[z->size -1] != 0){
@@ -350,8 +321,7 @@ static bool _decode( zson_t *zd, zsnode_t *z, const char *src, size_t start,
                             "key value pairs must start with a string" );
             return false;
         }
-        if(!_decode(zd, z, origin, start+size, 
-                           maxsize-size, false, bit64 )){
+        if(!_decode(zd, z, origin, start+size, maxsize-size, false, bit64 )){
             return false;
         }
         z->key = src + headersize;
@@ -368,7 +338,8 @@ bool zson_next(zson_t *z){
 
     if(zson_has_error(z)){
         return false;
-    }else if(z->stack_index == 0 && !cz->parsed){
+    }else if(z->stack_index == 0 && !z->started){
+        z->started = true;
         _decode(z, cz, z->mem, 0, z->mem_size, false, z->bit64);
         return !zson_has_error(z);
     }else if(cz->has_next){
@@ -383,7 +354,7 @@ bool zson_next(zson_t *z){
 }
 bool zson_child(zson_t *z){
     zsnode_t *pz = z->stack + z->stack_index;
-    if(zson_has_error(z) || !pz->parsed){
+    if(zson_has_error(z)){
         return false;
     }else if(pz->has_child){
         zson_push_node(z);
@@ -406,15 +377,36 @@ bool zson_parent(zson_t *z){
     }
     return false;
 }
+void zson_visit(zson_t *z){
+    if(!zson_has_error(z)){
+        zson_get_node(z)->visited = true;
+    }
+}
+void zson_unvisit(zson_t *z){
+    if(!zson_has_error(z)){
+        zson_get_node(z)->visited = false;
+    }
+}
+bool zson_visited(zson_t *z){
+    return zson_has_error(z) || zson_get_node(z)->visited;
+}
 bool zson_iterate(zson_t *z){
-    return (zson_child(z) || zson_next(z) || (zson_parent(z) && zson_next(z))) 
-           && !zson_has_error(z);
+    if(zson_has_error(z)){
+        return false;
+    }
+    if(!zson_visited(z)){
+        zson_visit(z);
+        if(zson_child(z)){
+            return true;
+        }
+    }
+    return (zson_next(z) || zson_parent(z)) && !zson_has_error(z);
 }
 bool zson_has_child(zson_t *z){
     return zson_get_node(z)->has_child;
 }
 bool zson_has_next(zson_t *z){
-    return !zson_get_node(z)->parsed || zson_get_node(z)->has_next;
+    return zson_get_node(z)->has_next;
 }
 bool zson_has_parent(zson_t *z){
     return z->stack_index > 0;
@@ -423,11 +415,11 @@ bool zson_has_error(zson_t *z){
     return (bool)z->error; 
 }
 bool zson_can_iterate(zson_t *z){
+    zsnode_t *zn = zson_get_node(z);
     if(zson_has_error(z)){
         return false;
     }
-    return    zson_get_node(z)->has_child 
-           || zson_get_node(z)->has_next 
+    return (!zn->iterated && zn->has_child) || zn->has_next 
            || (z->stack_index > 0 && z->stack[z->stack_index-1].has_next);
 }
 static void zson_print_mem(FILE* out, zson_t *z){
@@ -454,7 +446,7 @@ void zson_print_error(FILE *out, zson_t *z){
     }
 }
 const char* TYPENAME[256] = {
-    "PADDING",
+    "NO_ENT",
     "NULL",
     "TRUE",
     "FALSE",
@@ -508,7 +500,7 @@ void zson_print_value(FILE *out, zson_t *z){
         fprintf(out,"ERROR: NULL NODE!");
     }
     switch(zn->type){
-        case ZSON_PADDING:  fprintf(out,"padding"); break;
+        case ZSON_NO_ENT:   fprintf(out,"noent"); break;
         case ZSON_NULL:     fprintf(out,"null");    break;
         case ZSON_TRUE:     fprintf(out,"true");    break;
         case ZSON_FALSE:    fprintf(out,"false");   break;
@@ -556,33 +548,34 @@ void zson_print_full_node(FILE *out, zson_t *z){
         fprintf(out,"\tsize: %d\n",zn->size);
         fprintf(out,"\tcontent_start: %d\n",zn->content_start);
         fprintf(out,"\thas_child: %d\n",(int)zn->has_child);
-        fprintf(out,"\tparsed: %d\n",(int)zn->parsed);
         fprintf(out,"\thas_next: %d\n",(int)zn->has_next);
+        fprintf(out,"\tvisited: %d\n",(int)zn->visited);
+        fprintf(out,"\tdepth: %d\n",(int)z->stack_index);
     }else{
         fprintf(out,"ZSON NODE: NULL\n");
     }
 }
 void zson_to_json(FILE *out, zson_t *z){
+    zson_unvisit(z);
     while(true){
         if(zson_has_error(z)){
-            zson_print_error(out,z);
-            return;
+            break;
         }
-        int type = zson_get_type(z);
-
-        if(zson_child(z)){
-            if(type == ZSON_ARRAY){
-                fprintf(out,"[ ");
-            }else{
-                fprintf(out,"{ ");
+        if(!zson_visited(z)){
+            zson_visit(z);
+            if(zson_child(z)){
+                if(zson_get_parent_type(z) == ZSON_ARRAY){
+                    fprintf(out,"[");
+                }else{
+                    fprintf(out,"{");
+                }
+                continue;
             }
-            continue;
+            if(zson_get_key(z)){
+                fprintf(out,"\"%s\":",zson_get_key(z));
+            }
+            zson_print_value(out,z);
         }
-
-        if(zson_get_key(z)){
-            fprintf(out,"\"%s\":",zson_get_key(z));
-        }
-        zson_print_value(out,z);
 
         if(zson_next(z)){
             fprintf(out,", ");
@@ -595,45 +588,30 @@ void zson_to_json(FILE *out, zson_t *z){
             }else{
                 fprintf(out,"}");
             }
-            if(!zson_next(z)){
-                break;
-            }
+            continue;
         }
-
         break;
     }
     fprintf(out,"\n");
+    if(zson_has_error(z)){
+        zson_print_error(out,z);
+    }
 }
 
 int main(int argc, char** argv){
-    //int mode      = DECODE;
 
     if(argc != 3 && argc != 4){
         goto argument_error;
     }
 
     if(!strcmp(argv[1],"encode")){
-        //mode = ENCODE;
     }else if(!strcmp(argv[1],"decode")){
-        //mode = DECODE;
+        zson_t *z = zson_decode_path(argv[2]); 
+        zson_to_json(stdout,z);
+        zson_free(z);
     }else{
         goto argument_error;
     }
-
-    zson_t *z = zson_decode_path(argv[2]); 
-    
-    zson_to_json(stdout,z);
-
-    /*while(zson_child(z) || zson_next(z) || (zson_parent(z) && zson_next(z))){
-        zson_print_node(stdout,z);
-    }*/
-
-    /*if(zson_has_error(z)){
-        zson_print_error(stdout,z);
-        zson_print_mem(stdout,z);
-    }*/
-
-    zson_free(z);
     
     /*if(argc == 4){
         output_f = fopen(argv[3],"w");
