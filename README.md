@@ -219,7 +219,7 @@ binary representation of the numerical type.
 ### Endianness
 
 All values should be encoded and decoded with their 
-big-endian binary representation.
+little-endian binary representation.
 
 ### Big data
 
