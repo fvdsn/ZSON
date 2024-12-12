@@ -122,13 +122,13 @@ padded. The size can be computed from the type and is thus not encoded.
     INT8    : 4    : 2    : [ 4 | X ]
     INT16   : 5    : 3    : [ 5 | X X ]
     INT32   : 6    : 5    : [ 6 | X X X X ]
-    INT64   : 7    : 9    : [   | X X X X X X X X ]
-    UINT8   : 8    : 2    : [ 7 | X ]
-    UINT16  : 9    : 3    : [ 8 | X X ]
-    UINT32  : 10   : 5    : [ 9 | X X X X ]
-    UINT64  : 11   : 9    : [   | X X X X X X X X ]
-    FLOAT32 : 12   : 5    : [10 | X X X X ]
-    FLOAT64 : 13   : 9    : [11 | X X X X X X X X ]
+    INT64   : 7    : 9    : [ 7 | X X X X X X X X ]
+    UINT8   : 8    : 2    : [ 8 | X ]
+    UINT16  : 9    : 3    : [ 9 | X X ]
+    UINT32  : 10   : 5    : [10 | X X X X ]
+    UINT64  : 11   : 9    : [11 | X X X X X X X X ]
+    FLOAT32 : 12   : 5    : [12 | X X X X ]
+    FLOAT64 : 13   : 9    : [13 | X X X X X X X X ]
 
 The encoder is free to choose any encoding for numerical values as long as it does
 not result in any loss of precision.
@@ -149,10 +149,10 @@ enough to warrant their inclusion.
 
     ENTITY   : TYPE : SIZE : REPR
     -------  +------+------+-----
-    STRING   :  14  : ENC  | [12 | S S S S ... 0 ] 
-    STRING4  :  15  : 4    | [   | C C 0 ] 
-    STRING8  :  16  : 8    | [   | C C C C C 0 ] 
-    STRING12 :  17  : 12   | [   | C C C C C C C C C 0 ] 
+    STRING   :  14  : ENC  | [14 | S S S S ... 0 ] 
+    STRING4  :  15  : 4    | [15 | C C 0 ] 
+    STRING8  :  16  : 8    | [16 | C C C C C 0 ] 
+    STRING12 :  17  : 12   | [17 | C C C C C C C C C 0 ] 
 
     SIZE COMP:
     SRC | STR | STRX | JSON 
@@ -195,7 +195,7 @@ keys as it wish.
     -------+------+--------
     OBJECT :  18  : ENCODED
 
-    [ 18 | Size | KEY1 | VAL[KEY1] | KEY2 | VAL[KEY2 | ... ]
+    [ 18 | Size | KEY1 | VAL[KEY1] | KEY2 | VAL[KEY2] | ... ]
 
 ### Typed Arrays
 If all the values of an array can be encoded with the same ZSON number type, the array
